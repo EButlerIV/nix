@@ -37,7 +37,7 @@ void removeOldGenerations(std::string dir)
             std::string link;
             try {
                 link = readLink(path);
-            } catch (SysError & e) {
+            } catch (PosixError & e) {
                 if (e.errNo == ENOENT) continue;
                 throw;
             }

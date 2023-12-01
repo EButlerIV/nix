@@ -484,7 +484,7 @@ ref<const ValidPathInfo> RemoteStore::addCAToStore(
                         }
                     }
                     conn.processStderr();
-                } catch (SysError & e) {
+                } catch (PosixError & e) {
                     /* Daemon closed while we were sending the path. Probably OOM
                       or I/O error. */
                     if (e.errNo == EPIPE)

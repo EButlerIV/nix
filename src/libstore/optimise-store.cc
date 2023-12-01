@@ -21,7 +21,7 @@ static void makeWritable(const Path & path)
 {
     auto st = lstat(path);
     if (chmod(path.c_str(), st.st_mode | S_IWUSR) == -1)
-        throw SysError("changing writability of '%1%'", path);
+        throw PosixError("changing writability of '%1%'", path);
 }
 
 
@@ -47,7 +47,7 @@ LocalStore::InodeHash LocalStore::loadInodeHash()
     InodeHash inodeHash;
 
     AutoCloseDir dir(opendir(linksDir.c_str()));
-    if (!dir) throw SysError("opening directory '%1%'", linksDir);
+    if (!dir) throw PosixError("opening directory '%1%'", linksDir);
 
     struct dirent * dirent;
     while (errno = 0, dirent = readdir(dir.get())) { /* sic */
@@ -55,7 +55,7 @@ LocalStore::InodeHash LocalStore::loadInodeHash()
         // We don't care if we hit non-hash files, anything goes
         inodeHash.insert(dirent->d_ino);
     }
-    if (errno) throw SysError("reading directory '%1%'", linksDir);
+    if (errno) throw PosixError("reading directory '%1%'", linksDir);
 
     printMsg(lvlTalkative, "loaded %1% hash inodes", inodeHash.size());
 
@@ -68,7 +68,7 @@ Strings LocalStore::readDirectoryIgnoringInodes(const Path & path, const InodeHa
     Strings names;
 
     AutoCloseDir dir(opendir(path.c_str()));
-    if (!dir) throw SysError("opening directory '%1%'", path);
+    if (!dir) throw PosixError("opening directory '%1%'", path);
 
     struct dirent * dirent;
     while (errno = 0, dirent = readdir(dir.get())) { /* sic */
@@ -83,7 +83,7 @@ Strings LocalStore::readDirectoryIgnoringInodes(const Path & path, const InodeHa
         if (name == "." || name == "..") continue;
         names.push_back(name);
     }
-    if (errno) throw SysError("reading directory '%1%'", path);
+    if (errno) throw PosixError("reading directory '%1%'", path);
 
     return names;
 }
@@ -199,7 +199,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
             return;
 
         default:
-            throw SysError("cannot link '%1%' to '%2%'", linkPath, path);
+            throw PosixError("cannot link '%1%' to '%2%'", linkPath, path);
         }
     }
 
@@ -236,7 +236,7 @@ void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats,
                 printInfo("'%1%' has maximum number of links", linkPath);
             return;
         }
-        throw SysError("cannot link '%1%' to '%2%'", tempLink, linkPath);
+        throw PosixError("cannot link '%1%' to '%2%'", tempLink, linkPath);
     }
 
     /* Atomically replace the old file with the new hard link. */

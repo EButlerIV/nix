@@ -54,7 +54,7 @@ void builtinFetchurl(const BasicDerivation & drv, const std::string & netrcData)
         auto executable = drv.env.find("executable");
         if (executable != drv.env.end() && executable->second == "1") {
             if (chmod(storePath.c_str(), 0755) == -1)
-                throw SysError("making '%1%' executable", storePath);
+                throw PosixError("making '%1%' executable", storePath);
         }
     };
 

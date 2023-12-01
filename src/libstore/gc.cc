@@ -104,7 +104,7 @@ void LocalStore::createTempRootsFile()
            way. */
         struct stat st;
         if (fstat(fdTempRoots->get(), &st) == -1)
-            throw SysError("statting '%1%'", fnTempRoots);
+            throw PosixError("statting '%1%'", fnTempRoots);
         if (st.st_size == 0) break;
 
         /* The garbage collector deleted this file before we could get
@@ -148,7 +148,7 @@ void LocalStore::addTempRoot(const StorePath & path)
             *fdRootsSocket = createUnixDomainSocket();
             try {
                 nix::connect(fdRootsSocket->get(), socketPath);
-            } catch (SysError & e) {
+            } catch (PosixError & e) {
                 /* The garbage collector may have exited, so we need to
                    restart. */
                 if (e.errNo == ECONNREFUSED) {
@@ -167,7 +167,7 @@ void LocalStore::addTempRoot(const StorePath & path)
             readFull(fdRootsSocket->get(), &c, 1);
             assert(c == '1');
             debug("got ack for GC root '%s'", printStorePath(path));
-        } catch (SysError & e) {
+        } catch (PosixError & e) {
             /* The garbage collector may have exited, so we need to
                restart. */
             if (e.errNo == EPIPE || e.errNo == ECONNRESET) {
@@ -212,7 +212,7 @@ void LocalStore::findTempRoots(Roots & tempRoots, bool censor)
         if (!fd) {
             /* It's okay if the file has disappeared. */
             if (errno == ENOENT) continue;
-            throw SysError("opening temporary roots file '%1%'", path);
+            throw PosixError("opening temporary roots file '%1%'", path);
         }
 
         /* Try to acquire a write lock without blocking.  This can
@@ -293,7 +293,7 @@ void LocalStore::findRoots(const Path & path, unsigned char type, Roots & roots)
 
     }
 
-    catch (SysError & e) {
+    catch (PosixError & e) {
         /* We only ignore permanent failures. */
         if (e.errNo == EACCES || e.errNo == ENOENT || e.errNo == ENOTDIR)
             printInfo("cannot read potential root '%1%'", path);
@@ -336,7 +336,7 @@ static void readProcLink(const std::string & file, UncheckedRoots & roots)
     if (res == -1) {
         if (errno == ENOENT || errno == EACCES || errno == ESRCH)
             return;
-        throw SysError("reading symlink");
+        throw PosixError("reading symlink");
     }
     if (res == bufsiz) {
         throw Error("overly long symlink starting with '%1%'", std::string_view(buf, bufsiz));
@@ -357,7 +357,7 @@ static void readFileRoots(const char * path, UncheckedRoots & roots)
 {
     try {
         roots[readFile(path)].emplace(path);
-    } catch (SysError & e) {
+    } catch (PosixError & e) {
         if (e.errNo != ENOENT && e.errNo != EACCES)
             throw;
     }
@@ -386,7 +386,7 @@ void LocalStore::findRuntimeRoots(Roots & roots, bool censor)
                     if (!fdDir) {
                         if (errno == ENOENT || errno == EACCES)
                             continue;
-                        throw SysError("opening %1%", fdStr);
+                        throw PosixError("opening %1%", fdStr);
                     }
                     struct dirent * fd_ent;
                     while (errno = 0, fd_ent = readdir(fdDir.get())) {
@@ -396,7 +396,7 @@ void LocalStore::findRuntimeRoots(Roots & roots, bool censor)
                     if (errno) {
                         if (errno == ESRCH)
                             continue;
-                        throw SysError("iterating /proc/%1%/fd", ent->d_name);
+                        throw PosixError("iterating /proc/%1%/fd", ent->d_name);
                     }
                     fdDir.reset();
 
@@ -421,7 +421,7 @@ void LocalStore::findRuntimeRoots(Roots & roots, bool censor)
             }
         }
         if (errno)
-            throw SysError("iterating /proc");
+            throw PosixError("iterating /proc");
     }
 
 #if !defined(__linux__)
@@ -515,7 +515,7 @@ void LocalStore::collectGarbage(const GCOptions & options, GCResults & results)
     auto fdServer = createUnixDomainSocket(socketPath, 0666);
 
     if (fcntl(fdServer.get(), F_SETFL, fcntl(fdServer.get(), F_GETFL) | O_NONBLOCK) == -1)
-        throw SysError("making socket '%1%' non-blocking", socketPath);
+        throw PosixError("making socket '%1%' non-blocking", socketPath);
 
     Pipe shutdownPipe;
     shutdownPipe.create();
@@ -805,7 +805,7 @@ void LocalStore::collectGarbage(const GCOptions & options, GCResults & results)
 
         try {
             AutoCloseDir dir(opendir(realStoreDir.get().c_str()));
-            if (!dir) throw SysError("opening directory '%1%'", realStoreDir);
+            if (!dir) throw PosixError("opening directory '%1%'", realStoreDir);
 
             /* Read the store and delete all paths that are invalid or
                unreachable. We don't use readDirectory() here so that
@@ -849,7 +849,7 @@ void LocalStore::collectGarbage(const GCOptions & options, GCResults & results)
         printInfo("deleting unused links...");
 
         AutoCloseDir dir(opendir(linksDir.c_str()));
-        if (!dir) throw SysError("opening directory '%1%'", linksDir);
+        if (!dir) throw PosixError("opening directory '%1%'", linksDir);
 
         int64_t actualSize = 0, unsharedSize = 0;
 
@@ -871,7 +871,7 @@ void LocalStore::collectGarbage(const GCOptions & options, GCResults & results)
             printMsg(lvlTalkative, "deleting unused link '%1%'", path);
 
             if (unlink(path.c_str()) == -1)
-                throw SysError("deleting '%1%'", path);
+                throw PosixError("deleting '%1%'", path);
 
             /* Do not accound for deleted file here. Rely on deletePath()
                accounting.  */
@@ -879,7 +879,7 @@ void LocalStore::collectGarbage(const GCOptions & options, GCResults & results)
 
         struct stat st;
         if (stat(linksDir.c_str(), &st) == -1)
-            throw SysError("statting '%1%'", linksDir);
+            throw PosixError("statting '%1%'", linksDir);
         int64_t overhead = st.st_blocks * 512ULL;
 
         printInfo("note: currently hard linking saves %.2f MiB",
@@ -901,7 +901,7 @@ void LocalStore::autoGC(bool sync)
 
         struct statvfs st;
         if (statvfs(realStoreDir.get().c_str(), &st))
-            throw SysError("getting filesystem info about '%s'", realStoreDir);
+            throw PosixError("getting filesystem info about '%s'", realStoreDir);
 
         return (uint64_t) st.f_bavail * st.f_frsize;
     };

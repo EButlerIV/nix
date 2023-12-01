@@ -609,7 +609,7 @@ static void main_nix_build(int argc, char * * argv)
 
         execvp(shell->c_str(), argPtrs.data());
 
-        throw SysError("executing shell '%s'", *shell);
+        throw PosixError("executing shell '%s'", *shell);
     }
 
     else {

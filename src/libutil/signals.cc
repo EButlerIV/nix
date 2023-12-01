@@ -117,7 +117,7 @@ void setChildSignalMask(sigset_t * sigs)
 
 void saveSignalMask() {
     if (sigprocmask(SIG_BLOCK, nullptr, &savedSignalMask))
-        throw SysError("querying signal mask");
+        throw PosixError("querying signal mask");
 
     savedSignalMaskIsSet = true;
 }
@@ -136,7 +136,7 @@ void startSignalHandlerThread()
     sigaddset(&set, SIGPIPE);
     sigaddset(&set, SIGWINCH);
     if (pthread_sigmask(SIG_BLOCK, &set, nullptr))
-        throw SysError("blocking signals");
+        throw PosixError("blocking signals");
 
     std::thread(signalHandlerThread, set).detach();
 }
@@ -158,7 +158,7 @@ void restoreSignals()
         return;
 
     if (sigprocmask(SIG_SETMASK, &savedSignalMask, nullptr))
-        throw SysError("restoring signals");
+        throw PosixError("restoring signals");
 }
 
 

@@ -130,30 +130,30 @@ void initNix()
 
     act.sa_handler = SIG_DFL;
     if (sigaction(SIGCHLD, &act, 0))
-        throw SysError("resetting SIGCHLD");
+        throw PosixError("resetting SIGCHLD");
 
     /* Install a dummy SIGUSR1 handler for use with pthread_kill(). */
     act.sa_handler = sigHandler;
-    if (sigaction(SIGUSR1, &act, 0)) throw SysError("handling SIGUSR1");
+    if (sigaction(SIGUSR1, &act, 0)) throw PosixError("handling SIGUSR1");
 
 #if __APPLE__
     /* HACK: on darwin, we need can’t use sigprocmask with SIGWINCH.
      * Instead, add a dummy sigaction handler, and signalHandlerThread
      * can handle the rest. */
     act.sa_handler = sigHandler;
-    if (sigaction(SIGWINCH, &act, 0)) throw SysError("handling SIGWINCH");
+    if (sigaction(SIGWINCH, &act, 0)) throw PosixError("handling SIGWINCH");
 
     /* Disable SA_RESTART for interrupts, so that system calls on this thread
      * error with EINTR like they do on Linux.
      * Most signals on BSD systems default to SA_RESTART on, but Nix
      * expects EINTR from syscalls to properly exit. */
     act.sa_handler = SIG_DFL;
-    if (sigaction(SIGINT, &act, 0)) throw SysError("handling SIGINT");
-    if (sigaction(SIGTERM, &act, 0)) throw SysError("handling SIGTERM");
-    if (sigaction(SIGHUP, &act, 0)) throw SysError("handling SIGHUP");
-    if (sigaction(SIGPIPE, &act, 0)) throw SysError("handling SIGPIPE");
-    if (sigaction(SIGQUIT, &act, 0)) throw SysError("handling SIGQUIT");
-    if (sigaction(SIGTRAP, &act, 0)) throw SysError("handling SIGTRAP");
+    if (sigaction(SIGINT, &act, 0)) throw PosixError("handling SIGINT");
+    if (sigaction(SIGTERM, &act, 0)) throw PosixError("handling SIGTERM");
+    if (sigaction(SIGHUP, &act, 0)) throw PosixError("handling SIGHUP");
+    if (sigaction(SIGPIPE, &act, 0)) throw PosixError("handling SIGPIPE");
+    if (sigaction(SIGQUIT, &act, 0)) throw PosixError("handling SIGQUIT");
+    if (sigaction(SIGTRAP, &act, 0)) throw PosixError("handling SIGTRAP");
 #endif
 
     /* Register a SIGSEGV handler to detect stack overflows.
@@ -310,7 +310,7 @@ void showManPage(const std::string & name)
     restoreProcessContext();
     setenv("MANPATH", settings.nixManDir.c_str(), 1);
     execlp("man", "man", name.c_str(), nullptr);
-    throw SysError("command 'man %1%' failed", name.c_str());
+    throw PosixError("command 'man %1%' failed", name.c_str());
 }
 
 
@@ -367,7 +367,7 @@ RunPager::RunPager()
 
     pid = startProcess([&]() {
         if (dup2(toPager.readSide.get(), STDIN_FILENO) == -1)
-            throw SysError("dupping stdin");
+            throw PosixError("dupping stdin");
         if (!getenv("LESS"))
             setenv("LESS", "FRSXMK", 1);
         restoreProcessContext();
@@ -376,13 +376,13 @@ RunPager::RunPager()
         execlp("pager", "pager", nullptr);
         execlp("less", "less", nullptr);
         execlp("more", "more", nullptr);
-        throw SysError("executing '%1%'", pager);
+        throw PosixError("executing '%1%'", pager);
     });
 
     pid.setKillSignal(SIGINT);
     std_out = fcntl(STDOUT_FILENO, F_DUPFD_CLOEXEC, 0);
     if (dup2(toPager.writeSide.get(), STDOUT_FILENO) == -1)
-        throw SysError("dupping standard output");
+        throw PosixError("dupping standard output");
 }
 
 

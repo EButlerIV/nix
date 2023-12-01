@@ -50,7 +50,7 @@ struct CmdEdit : InstallableValueCommand
 
         std::string command;
         for (const auto &arg : args) command += " '" + arg + "'";
-        throw SysError("cannot run command%s", command);
+        throw PosixError("cannot run command%s", command);
     }
 };
 

@@ -25,7 +25,7 @@ static std::vector<gid_t> get_group_list(const char *username, gid_t group_id)
     // The first error means that the vector was not big enough.
     // If it happens again, there is some different problem.
     if (getgroupl_failed() && getgroupl_failed()) {
-        throw SysError("failed to get list of supplementary groups for '%s'", username);
+        throw PosixError("failed to get list of supplementary groups for '%s'", username);
     }
 
     return gids;
@@ -79,7 +79,7 @@ struct SimpleUserLock : UserLock
 
             AutoCloseFD fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
             if (!fd)
-                throw SysError("opening user lock '%s'", fnUserLock);
+                throw PosixError("opening user lock '%s'", fnUserLock);
 
             if (lockFile(fd.get(), ltWrite, false)) {
                 auto lock = std::make_unique<SimpleUserLock>();
@@ -151,7 +151,7 @@ struct AutoUserLock : UserLock
 
             AutoCloseFD fd = open(fnUserLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
             if (!fd)
-                throw SysError("opening user lock '%s'", fnUserLock);
+                throw PosixError("opening user lock '%s'", fnUserLock);
 
             if (lockFile(fd.get(), ltWrite, false)) {
 

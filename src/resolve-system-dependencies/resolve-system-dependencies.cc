@@ -32,11 +32,11 @@ std::set<std::string> runResolver(const Path & filename)
 {
     AutoCloseFD fd = open(filename.c_str(), O_RDONLY);
     if (!fd)
-        throw SysError("opening '%s'", filename);
+        throw PosixError("opening '%s'", filename);
 
     struct stat st;
     if (fstat(fd.get(), &st))
-        throw SysError("statting '%s'", filename);
+        throw PosixError("statting '%s'", filename);
 
     if (!S_ISREG(st.st_mode)) {
         printError("file '%s' is not a regular MACH binary", filename);
@@ -50,7 +50,7 @@ std::set<std::string> runResolver(const Path & filename)
 
     char* obj = (char*) mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd.get(), 0);
     if (!obj)
-        throw SysError("mmapping '%s'", filename);
+        throw PosixError("mmapping '%s'", filename);
 
     ptrdiff_t mach64_offset = 0;
 

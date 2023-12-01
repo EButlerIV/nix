@@ -216,7 +216,7 @@ LocalStore::LocalStore(const Params & params)
         createDirs(perUserDir);
         if (!readOnly) {
             if (chmod(perUserDir.c_str(), 0755) == -1)
-                throw SysError("could not set permissions on '%s' to 755", perUserDir);
+                throw PosixError("could not set permissions on '%s' to 755", perUserDir);
         }
     }
 
@@ -231,13 +231,13 @@ LocalStore::LocalStore(const Params & params)
         else {
             struct stat st;
             if (stat(realStoreDir.get().c_str(), &st))
-                throw SysError("getting attributes of path '%1%'", realStoreDir);
+                throw PosixError("getting attributes of path '%1%'", realStoreDir);
 
             if (st.st_uid != 0 || st.st_gid != gr->gr_gid || (st.st_mode & ~S_IFMT) != perm) {
                 if (chown(realStoreDir.get().c_str(), 0, gr->gr_gid) == -1)
-                    throw SysError("changing ownership of path '%1%'", realStoreDir);
+                    throw PosixError("changing ownership of path '%1%'", realStoreDir);
                 if (chmod(realStoreDir.get().c_str(), perm) == -1)
-                    throw SysError("changing permissions on path '%1%'", realStoreDir);
+                    throw PosixError("changing permissions on path '%1%'", realStoreDir);
             }
         }
     }
@@ -458,7 +458,7 @@ AutoCloseFD LocalStore::openGCLock()
     Path fnGCLock = stateDir + "/gc.lock";
     auto fdGCLock = open(fnGCLock.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0600);
     if (!fdGCLock)
-        throw SysError("opening global GC lock '%1%'", fnGCLock);
+        throw PosixError("opening global GC lock '%1%'", fnGCLock);
     return fdGCLock;
 }
 
@@ -506,7 +506,7 @@ void LocalStore::openDB(State & state, bool create)
     }
 
     if (access(dbDir.c_str(), R_OK | (readOnly ? 0 : W_OK)))
-        throw SysError("Nix database directory '%1%' is not writable", dbDir);
+        throw PosixError("Nix database directory '%1%' is not writable", dbDir);
 
     /* Open the Nix database. */
     std::string dbPath = dbDir + "/db.sqlite";
@@ -576,11 +576,11 @@ void LocalStore::makeStoreWritable()
     /* Check if /nix/store is on a read-only mount. */
     struct statvfs stat;
     if (statvfs(realStoreDir.get().c_str(), &stat) != 0)
-        throw SysError("getting info about the Nix store mount point");
+        throw PosixError("getting info about the Nix store mount point");
 
     if (stat.f_flag & ST_RDONLY) {
         if (mount(0, realStoreDir.get().c_str(), "none", MS_REMOUNT | MS_BIND, 0) == -1)
-            throw SysError("remounting %1% writable", realStoreDir);
+            throw PosixError("remounting %1% writable", realStoreDir);
     }
 #endif
 }
@@ -1371,7 +1371,7 @@ bool LocalStore::verifyStore(bool checkContents, RepairFlag repair)
                     if (unlink(linkPath.c_str()) == 0)
                         printInfo("removed link '%s'", linkPath);
                     else
-                        throw SysError("removing corrupt link '%s'", linkPath);
+                        throw PosixError("removing corrupt link '%s'", linkPath);
                 } else {
                     errors = true;
                 }
@@ -1515,7 +1515,7 @@ static void makeMutable(const Path & path)
     AutoCloseFD fd = open(path.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
     if (fd == -1) {
         if (errno == ELOOP) return; // it's a symlink
-        throw SysError("opening file '%1%'", path);
+        throw PosixError("opening file '%1%'", path);
     }
 
     unsigned int flags = 0, old;

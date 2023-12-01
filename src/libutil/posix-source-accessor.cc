@@ -15,11 +15,11 @@ void PosixSourceAccessor::readFile(
 
     AutoCloseFD fd = open(path.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
     if (!fd)
-        throw SysError("opening file '%1%'", path);
+        throw PosixError("opening file '%1%'", path);
 
     struct stat st;
     if (fstat(fd.get(), &st) == -1)
-        throw SysError("statting file");
+        throw PosixError("statting file");
 
     sizeCallback(st.st_size);
 
@@ -31,10 +31,10 @@ void PosixSourceAccessor::readFile(
         ssize_t rd = read(fd.get(), buf.data(), (size_t) std::min(left, (off_t) buf.size()));
         if (rd == -1) {
             if (errno != EINTR)
-                throw SysError("reading from file '%s'", showPath(path));
+                throw PosixError("reading from file '%s'", showPath(path));
         }
         else if (rd == 0)
-            throw SysError("unexpected end-of-file reading '%s'", showPath(path));
+            throw PosixError("unexpected end-of-file reading '%s'", showPath(path));
         else {
             assert(rd <= left);
             sink({(char *) buf.data(), (size_t) rd});
@@ -64,7 +64,7 @@ std::optional<struct stat> PosixSourceAccessor::cachedLstat(const CanonPath & pa
         if (errno == ENOENT || errno == ENOTDIR)
             st.reset();
         else
-            throw SysError("getting status of '%s'", showPath(path));
+            throw PosixError("getting status of '%s'", showPath(path));
     }
 
     auto cache(_cache.lock());

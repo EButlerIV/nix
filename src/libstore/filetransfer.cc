@@ -616,7 +616,7 @@ struct curlFileTransfer : public FileTransfer
                 char buf[1024];
                 auto res = read(extraFDs[0].fd, buf, sizeof(buf));
                 if (res == -1 && errno != EINTR)
-                    throw SysError("reading curl wakeup socket");
+                    throw PosixError("reading curl wakeup socket");
             }
 
             std::vector<std::shared_ptr<TransferItem>> incoming;

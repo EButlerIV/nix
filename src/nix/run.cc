@@ -53,7 +53,7 @@ void runProgramInStore(ref<Store> store,
 
         execv(getSelfExe().value_or("nix").c_str(), stringsToCharPtrs(helperArgs).data());
 
-        throw SysError("could not execute chroot helper");
+        throw PosixError("could not execute chroot helper");
     }
 
     if (system)
@@ -64,7 +64,7 @@ void runProgramInStore(ref<Store> store,
     else
         execv(program.c_str(), stringsToCharPtrs(args).data());
 
-    throw SysError("unable to execute '%s'", program);
+    throw PosixError("unable to execute '%s'", program);
 }
 
 }
@@ -226,7 +226,7 @@ void chrootHelper(int argc, char * * argv)
         /* Try with just CLONE_NEWNS in case user namespaces are
            specifically disabled. */
         if (unshare(CLONE_NEWNS) == -1)
-            throw SysError("setting up a private mount namespace");
+            throw PosixError("setting up a private mount namespace");
 
     /* Bind-mount realStoreDir on /nix/store. If the latter mount
        point doesn't already exists, we have to create a chroot
@@ -243,7 +243,7 @@ void chrootHelper(int argc, char * * argv)
         createDirs(tmpDir + storeDir);
 
         if (mount(realStoreDir.c_str(), (tmpDir + storeDir).c_str(), "", MS_BIND, 0) == -1)
-            throw SysError("mounting '%s' on '%s'", realStoreDir, storeDir);
+            throw PosixError("mounting '%s' on '%s'", realStoreDir, storeDir);
 
         for (auto entry : readDirectory("/")) {
             auto src = "/" + entry.name;
@@ -252,25 +252,25 @@ void chrootHelper(int argc, char * * argv)
             auto st = lstat(src);
             if (S_ISDIR(st.st_mode)) {
                 if (mkdir(dst.c_str(), 0700) == -1)
-                    throw SysError("creating directory '%s'", dst);
+                    throw PosixError("creating directory '%s'", dst);
                 if (mount(src.c_str(), dst.c_str(), "", MS_BIND | MS_REC, 0) == -1)
-                    throw SysError("mounting '%s' on '%s'", src, dst);
+                    throw PosixError("mounting '%s' on '%s'", src, dst);
             } else if (S_ISLNK(st.st_mode))
                 createSymlink(readLink(src), dst);
         }
 
         char * cwd = getcwd(0, 0);
-        if (!cwd) throw SysError("getting current directory");
+        if (!cwd) throw PosixError("getting current directory");
         Finally freeCwd([&]() { free(cwd); });
 
         if (chroot(tmpDir.c_str()) == -1)
-            throw SysError("chrooting into '%s'", tmpDir);
+            throw PosixError("chrooting into '%s'", tmpDir);
 
         if (chdir(cwd) == -1)
-            throw SysError("chdir to '%s' in chroot", cwd);
+            throw PosixError("chdir to '%s' in chroot", cwd);
     } else
         if (mount(realStoreDir.c_str(), storeDir.c_str(), "", MS_BIND, 0) == -1)
-            throw SysError("mounting '%s' on '%s'", realStoreDir, storeDir);
+            throw PosixError("mounting '%s' on '%s'", realStoreDir, storeDir);
 
     writeFile("/proc/self/setgroups", "deny");
     writeFile("/proc/self/uid_map", fmt("%d %d %d", uid, uid, 1));
@@ -281,7 +281,7 @@ void chrootHelper(int argc, char * * argv)
 
     execvp(cmd.c_str(), stringsToCharPtrs(args).data());
 
-    throw SysError("unable to exec '%s'", cmd);
+    throw PosixError("unable to exec '%s'", cmd);
 
 #else
     throw Error("mounting the Nix store on '%s' is not supported on this platform", storeDir);

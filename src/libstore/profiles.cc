@@ -112,7 +112,7 @@ Path createGeneration(LocalFSStore & store, Path profile, StorePath outPath)
 static void removeFile(const Path & path)
 {
     if (remove(path.c_str()) == -1)
-        throw SysError("cannot unlink '%1%'", path);
+        throw PosixError("cannot unlink '%1%'", path);
 }
 
 

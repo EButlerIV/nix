@@ -130,7 +130,7 @@ static void setSigChldAction(bool autoReap)
     sigfillset(&act.sa_mask);
     act.sa_flags = 0;
     if (sigaction(SIGCHLD, &act, &oact))
-        throw SysError("setting SIGCHLD handler");
+        throw PosixError("setting SIGCHLD handler");
 }
 
 /**
@@ -205,7 +205,7 @@ static PeerInfo getPeerInfo(int remote)
     ucred cred;
     socklen_t credLen = sizeof(cred);
     if (getsockopt(remote, SOL_SOCKET, SO_PEERCRED, &cred, &credLen) == -1)
-        throw SysError("getting peer credentials");
+        throw PosixError("getting peer credentials");
     peer = { true, cred.pid, true, cred.uid, true, cred.gid };
 
 #elif defined(LOCAL_PEERCRED)
@@ -217,7 +217,7 @@ static PeerInfo getPeerInfo(int remote)
     xucred cred;
     socklen_t credLen = sizeof(cred);
     if (getsockopt(remote, SOL_LOCAL, LOCAL_PEERCRED, &cred, &credLen) == -1)
-        throw SysError("getting peer credentials");
+        throw PosixError("getting peer credentials");
     peer = { false, 0, true, cred.cr_uid, false, 0 };
 
 #endif
@@ -285,7 +285,7 @@ static std::pair<TrustedFlag, std::string> authPeer(const PeerInfo & peer)
 static void daemonLoop(std::optional<TrustedFlag> forceTrustClientOpt)
 {
     if (chdir("/") == -1)
-        throw SysError("cannot change current directory");
+        throw PosixError("cannot change current directory");
 
     AutoCloseFD fdSocket;
 
@@ -320,7 +320,7 @@ static void daemonLoop(std::optional<TrustedFlag> forceTrustClientOpt)
             checkInterrupt();
             if (!remote) {
                 if (errno == EINTR) continue;
-                throw SysError("accepting connection");
+                throw PosixError("accepting connection");
             }
 
             closeOnExec(remote.get());
@@ -353,7 +353,7 @@ static void daemonLoop(std::optional<TrustedFlag> forceTrustClientOpt)
 
                 //  Background the daemon.
                 if (setsid() == -1)
-                    throw SysError("creating a new session");
+                    throw PosixError("creating a new session");
 
                 //  Restore normal handling of SIGCHLD.
                 setSigChldAction(false);
@@ -403,18 +403,18 @@ static void forwardStdioConnection(RemoteStore & store) {
         FD_SET(from, &fds);
         FD_SET(STDIN_FILENO, &fds);
         if (select(nfds, &fds, nullptr, nullptr, nullptr) == -1)
-            throw SysError("waiting for data from client or server");
+            throw PosixError("waiting for data from client or server");
         if (FD_ISSET(from, &fds)) {
             auto res = splice(from, nullptr, STDOUT_FILENO, nullptr, SSIZE_MAX, SPLICE_F_MOVE);
             if (res == -1)
-                throw SysError("splicing data from daemon socket to stdout");
+                throw PosixError("splicing data from daemon socket to stdout");
             else if (res == 0)
                 throw EndOfFile("unexpected EOF from daemon socket");
         }
         if (FD_ISSET(STDIN_FILENO, &fds)) {
             auto res = splice(STDIN_FILENO, nullptr, to, nullptr, SSIZE_MAX, SPLICE_F_MOVE);
             if (res == -1)
-                throw SysError("splicing data from stdin to daemon socket");
+                throw PosixError("splicing data from stdin to daemon socket");
             else if (res == 0)
                 return;
         }

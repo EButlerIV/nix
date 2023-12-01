@@ -76,11 +76,11 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(const std::string
         close(out.readSide.get());
 
         if (dup2(in.readSide.get(), STDIN_FILENO) == -1)
-            throw SysError("duping over stdin");
+            throw PosixError("duping over stdin");
         if (dup2(out.writeSide.get(), STDOUT_FILENO) == -1)
-            throw SysError("duping over stdout");
+            throw PosixError("duping over stdout");
         if (logFD != -1 && dup2(logFD, STDERR_FILENO) == -1)
-            throw SysError("duping over stderr");
+            throw PosixError("duping over stderr");
 
         Strings args;
 
@@ -99,7 +99,7 @@ std::unique_ptr<SSHMaster::Connection> SSHMaster::startCommand(const std::string
         execvp(args.begin()->c_str(), stringsToCharPtrs(args).data());
 
         // could not exec ssh/bash
-        throw SysError("unable to execute '%s'", args.front());
+        throw PosixError("unable to execute '%s'", args.front());
     }, options);
 
 
@@ -154,7 +154,7 @@ Path SSHMaster::startMaster()
         close(out.readSide.get());
 
         if (dup2(out.writeSide.get(), STDOUT_FILENO) == -1)
-            throw SysError("duping over stdout");
+            throw PosixError("duping over stdout");
 
         Strings args = { "ssh", host.c_str(), "-M", "-N", "-S", state->socketPath };
         if (verbosity >= lvlChatty)
@@ -162,7 +162,7 @@ Path SSHMaster::startMaster()
         addCommonSSHOpts(args);
         execvp(args.begin()->c_str(), stringsToCharPtrs(args).data());
 
-        throw SysError("unable to execute '%s'", args.front());
+        throw PosixError("unable to execute '%s'", args.front());
     }, options);
 
     out.writeSide = -1;

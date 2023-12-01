@@ -263,7 +263,7 @@ void LocalDerivationGoal::tryLocalBuild()
 static void chmod_(const Path & path, mode_t mode)
 {
     if (chmod(path.c_str(), mode) == -1)
-        throw SysError("setting permissions on '%s'", path);
+        throw PosixError("setting permissions on '%s'", path);
 }
 
 
@@ -399,7 +399,7 @@ static void doBind(const Path & source, const Path & target, bool optional = fal
         if (optional && errno == ENOENT)
             return;
         else
-            throw SysError("getting attributes of path '%1%'", source);
+            throw PosixError("getting attributes of path '%1%'", source);
     }
     if (S_ISDIR(st.st_mode))
         createDirs(target);
@@ -408,7 +408,7 @@ static void doBind(const Path & source, const Path & target, bool optional = fal
         writeFile(target, "");
     }
     if (mount(source.c_str(), target.c_str(), "", MS_BIND | MS_REC, 0) == -1)
-        throw SysError("bind mount from '%1%' to '%2%' failed", source, target);
+        throw PosixError("bind mount from '%1%' to '%2%' failed", source, target);
 };
 #endif
 
@@ -666,10 +666,10 @@ void LocalDerivationGoal::startBuilder()
 
         // FIXME: make this 0700
         if (mkdir(chrootRootDir.c_str(), buildUser && buildUser->getUIDCount() != 1 ? 0755 : 0750) == -1)
-            throw SysError("cannot create '%1%'", chrootRootDir);
+            throw PosixError("cannot create '%1%'", chrootRootDir);
 
         if (buildUser && chown(chrootRootDir.c_str(), buildUser->getUIDCount() != 1 ? buildUser->getUID() : 0, buildUser->getGID()) == -1)
-            throw SysError("cannot change ownership of '%1%'", chrootRootDir);
+            throw PosixError("cannot change ownership of '%1%'", chrootRootDir);
 
         /* Create a writable /tmp in the chroot.  Many builders need
            this.  (Of course they should really respect $TMPDIR
@@ -711,7 +711,7 @@ void LocalDerivationGoal::startBuilder()
         chmod_(chrootStoreDir, 01775);
 
         if (buildUser && chown(chrootStoreDir.c_str(), 0, buildUser->getGID()) == -1)
-            throw SysError("cannot change ownership of '%1%'", chrootStoreDir);
+            throw PosixError("cannot change ownership of '%1%'", chrootStoreDir);
 
         for (auto & i : inputPaths) {
             auto p = worker.store.printStorePath(i);
@@ -736,7 +736,7 @@ void LocalDerivationGoal::startBuilder()
 
         if (cgroup) {
             if (mkdir(cgroup->c_str(), 0755) != 0)
-                throw SysError("creating cgroup '%s'", *cgroup);
+                throw PosixError("creating cgroup '%s'", *cgroup);
             chownToBuilder(*cgroup);
             chownToBuilder(*cgroup + "/cgroup.procs");
             chownToBuilder(*cgroup + "/cgroup.threads");
@@ -814,47 +814,47 @@ void LocalDerivationGoal::startBuilder()
     /* Create a pseudoterminal to get the output of the builder. */
     builderOut = posix_openpt(O_RDWR | O_NOCTTY);
     if (!builderOut)
-        throw SysError("opening pseudoterminal master");
+        throw PosixError("opening pseudoterminal master");
 
     // FIXME: not thread-safe, use ptsname_r
     std::string slaveName = ptsname(builderOut.get());
 
     if (buildUser) {
         if (chmod(slaveName.c_str(), 0600))
-            throw SysError("changing mode of pseudoterminal slave");
+            throw PosixError("changing mode of pseudoterminal slave");
 
         if (chown(slaveName.c_str(), buildUser->getUID(), 0))
-            throw SysError("changing owner of pseudoterminal slave");
+            throw PosixError("changing owner of pseudoterminal slave");
     }
 #if __APPLE__
     else {
         if (grantpt(builderOut.get()))
-            throw SysError("granting access to pseudoterminal slave");
+            throw PosixError("granting access to pseudoterminal slave");
     }
 #endif
 
     if (unlockpt(builderOut.get()))
-        throw SysError("unlocking pseudoterminal");
+        throw PosixError("unlocking pseudoterminal");
 
     /* Open the slave side of the pseudoterminal and use it as stderr. */
     auto openSlave = [&]()
     {
         AutoCloseFD builderOut = open(slaveName.c_str(), O_RDWR | O_NOCTTY);
         if (!builderOut)
-            throw SysError("opening pseudoterminal slave");
+            throw PosixError("opening pseudoterminal slave");
 
         // Put the pt into raw mode to prevent \n -> \r\n translation.
         struct termios term;
         if (tcgetattr(builderOut.get(), &term))
-            throw SysError("getting pseudoterminal attributes");
+            throw PosixError("getting pseudoterminal attributes");
 
         cfmakeraw(&term);
 
         if (tcsetattr(builderOut.get(), TCSANOW, &term))
-            throw SysError("putting pseudoterminal into raw mode");
+            throw PosixError("putting pseudoterminal into raw mode");
 
         if (dup2(builderOut.get(), STDERR_FILENO) == -1)
-            throw SysError("cannot pipe standard error into log file");
+            throw PosixError("cannot pipe standard error into log file");
     };
 
     buildResult.startTime = time(0);
@@ -919,7 +919,7 @@ void LocalDerivationGoal::startBuilder()
                after we've created the new user namespace. */
             if (setgroups(0, 0) == -1) {
                 if (errno != EPERM)
-                    throw SysError("setgroups failed");
+                    throw PosixError("setgroups failed");
                 if (settings.requireDropSupplementaryGroups)
                     throw Error("setgroups failed. Set the require-drop-supplementary-groups option to false to skip this step.");
             }
@@ -988,12 +988,12 @@ void LocalDerivationGoal::startBuilder()
            *before* the child does a chroot. */
         sandboxMountNamespace = open(fmt("/proc/%d/ns/mnt", (pid_t) pid).c_str(), O_RDONLY);
         if (sandboxMountNamespace.get() == -1)
-            throw SysError("getting sandbox mount namespace");
+            throw PosixError("getting sandbox mount namespace");
 
         if (usingUserNamespace) {
             sandboxUserNamespace = open(fmt("/proc/%d/ns/user", (pid_t) pid).c_str(), O_RDONLY);
             if (sandboxUserNamespace.get() == -1)
-                throw SysError("getting sandbox user namespace");
+                throw PosixError("getting sandbox user namespace");
         }
 
         /* Move the child into its own cgroup. */
@@ -1481,7 +1481,7 @@ void LocalDerivationGoal::startDaemon()
             if (!remote) {
                 if (errno == EINTR || errno == EAGAIN) continue;
                 if (errno == EINVAL || errno == ECONNABORTED) break;
-                throw SysError("accepting connection");
+                throw PosixError("accepting connection");
             }
 
             closeOnExec(remote.get());
@@ -1523,7 +1523,7 @@ void LocalDerivationGoal::stopDaemon()
         if (errno == ENOTCONN) {
             daemonSocket.close();
         } else {
-            throw SysError("shutting down daemon socket");
+            throw PosixError("shutting down daemon socket");
         }
     }
 
@@ -1571,10 +1571,10 @@ void LocalDerivationGoal::addDependency(const StorePath & path)
             Pid child(startProcess([&]() {
 
                 if (usingUserNamespace && (setns(sandboxUserNamespace.get(), 0) == -1))
-                    throw SysError("entering sandbox user namespace");
+                    throw PosixError("entering sandbox user namespace");
 
                 if (setns(sandboxMountNamespace.get(), 0) == -1)
-                    throw SysError("entering sandbox mount namespace");
+                    throw PosixError("entering sandbox mount namespace");
 
                 doBind(source, target);
 
@@ -1597,7 +1597,7 @@ void LocalDerivationGoal::chownToBuilder(const Path & path)
 {
     if (!buildUser) return;
     if (chown(path.c_str(), buildUser->getUID(), buildUser->getGID()) == -1)
-        throw SysError("cannot change ownership of '%1%'", path);
+        throw PosixError("cannot change ownership of '%1%'", path);
 }
 
 
@@ -1609,7 +1609,7 @@ void setupSeccomp()
     scmp_filter_ctx ctx;
 
     if (!(ctx = seccomp_init(SCMP_ACT_ALLOW)))
-        throw SysError("unable to initialize seccomp mode 2");
+        throw PosixError("unable to initialize seccomp mode 2");
 
     Finally cleanup([&]() {
         seccomp_release(ctx);
@@ -1619,11 +1619,11 @@ void setupSeccomp()
 
     if (nativeSystem == "x86_64-linux" &&
         seccomp_arch_add(ctx, SCMP_ARCH_X86) != 0)
-        throw SysError("unable to add 32-bit seccomp architecture");
+        throw PosixError("unable to add 32-bit seccomp architecture");
 
     if (nativeSystem == "x86_64-linux" &&
         seccomp_arch_add(ctx, SCMP_ARCH_X32) != 0)
-        throw SysError("unable to add X32 seccomp architecture");
+        throw PosixError("unable to add X32 seccomp architecture");
 
     if (nativeSystem == "aarch64-linux" &&
         seccomp_arch_add(ctx, SCMP_ARCH_ARM) != 0)
@@ -1649,15 +1649,15 @@ void setupSeccomp()
     for (int perm : { S_ISUID, S_ISGID }) {
         if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EPERM), SCMP_SYS(chmod), 1,
                 SCMP_A1(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm)) != 0)
-            throw SysError("unable to add seccomp rule");
+            throw PosixError("unable to add seccomp rule");
 
         if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EPERM), SCMP_SYS(fchmod), 1,
                 SCMP_A1(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm)) != 0)
-            throw SysError("unable to add seccomp rule");
+            throw PosixError("unable to add seccomp rule");
 
         if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(EPERM), SCMP_SYS(fchmodat), 1,
                 SCMP_A2(SCMP_CMP_MASKED_EQ, (scmp_datum_t) perm, (scmp_datum_t) perm)) != 0)
-            throw SysError("unable to add seccomp rule");
+            throw PosixError("unable to add seccomp rule");
     }
 
     /* Prevent builders from creating EAs or ACLs. Not all filesystems
@@ -1666,13 +1666,13 @@ void setupSeccomp()
     if (seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOTSUP), SCMP_SYS(setxattr), 0) != 0 ||
         seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOTSUP), SCMP_SYS(lsetxattr), 0) != 0 ||
         seccomp_rule_add(ctx, SCMP_ACT_ERRNO(ENOTSUP), SCMP_SYS(fsetxattr), 0) != 0)
-        throw SysError("unable to add seccomp rule");
+        throw PosixError("unable to add seccomp rule");
 
     if (seccomp_attr_set(ctx, SCMP_FLTATR_CTL_NNP, settings.allowNewPrivileges ? 0 : 1) != 0)
-        throw SysError("unable to set 'no new privileges' seccomp attribute");
+        throw PosixError("unable to set 'no new privileges' seccomp attribute");
 
     if (seccomp_load(ctx) != 0)
-        throw SysError("unable to load seccomp BPF program");
+        throw PosixError("unable to load seccomp BPF program");
 #else
     throw Error(
         "seccomp is not supported on this platform; "
@@ -1723,22 +1723,22 @@ void LocalDerivationGoal::runChild()
 
                 /* Initialise the loopback interface. */
                 AutoCloseFD fd(socket(PF_INET, SOCK_DGRAM, IPPROTO_IP));
-                if (!fd) throw SysError("cannot open IP socket");
+                if (!fd) throw PosixError("cannot open IP socket");
 
                 struct ifreq ifr;
                 strcpy(ifr.ifr_name, "lo");
                 ifr.ifr_flags = IFF_UP | IFF_LOOPBACK | IFF_RUNNING;
                 if (ioctl(fd.get(), SIOCSIFFLAGS, &ifr) == -1)
-                    throw SysError("cannot set loopback interface flags");
+                    throw PosixError("cannot set loopback interface flags");
             }
 
             /* Set the hostname etc. to fixed values. */
             char hostname[] = "localhost";
             if (sethostname(hostname, sizeof(hostname)) == -1)
-                throw SysError("cannot set host name");
+                throw PosixError("cannot set host name");
             char domainname[] = "(none)"; // kernel default
             if (setdomainname(domainname, sizeof(domainname)) == -1)
-                throw SysError("cannot set domain name");
+                throw PosixError("cannot set domain name");
 
             /* Make all filesystems private.  This is necessary
                because subtrees may have been mounted as "shared"
@@ -1749,12 +1749,12 @@ void LocalDerivationGoal::runChild()
                local to the namespace, though, so setting MS_PRIVATE
                does not affect the outside world. */
             if (mount(0, "/", 0, MS_PRIVATE | MS_REC, 0) == -1)
-                throw SysError("unable to make '/' private");
+                throw PosixError("unable to make '/' private");
 
             /* Bind-mount chroot directory to itself, to treat it as a
                different filesystem from /, as needed for pivot_root. */
             if (mount(chrootRootDir.c_str(), chrootRootDir.c_str(), 0, MS_BIND, 0) == -1)
-                throw SysError("unable to bind mount '%1%'", chrootRootDir);
+                throw PosixError("unable to bind mount '%1%'", chrootRootDir);
 
             /* Bind-mount the sandbox's Nix store onto itself so that
                we can mark it as a "shared" subtree, allowing bind
@@ -1767,10 +1767,10 @@ void LocalDerivationGoal::runChild()
             Path chrootStoreDir = chrootRootDir + worker.store.storeDir;
 
             if (mount(chrootStoreDir.c_str(), chrootStoreDir.c_str(), 0, MS_BIND, 0) == -1)
-                throw SysError("unable to bind mount the Nix store", chrootStoreDir);
+                throw PosixError("unable to bind mount the Nix store", chrootStoreDir);
 
             if (mount(0, chrootStoreDir.c_str(), 0, MS_SHARED, 0) == -1)
-                throw SysError("unable to make '%s' shared", chrootStoreDir);
+                throw PosixError("unable to make '%s' shared", chrootStoreDir);
 
             /* Set up a nearly empty /dev, unless the user asked to
                bind-mount the host /dev. */
@@ -1838,20 +1838,20 @@ void LocalDerivationGoal::runChild()
             /* Bind a new instance of procfs on /proc. */
             createDirs(chrootRootDir + "/proc");
             if (mount("none", (chrootRootDir + "/proc").c_str(), "proc", 0, 0) == -1)
-                throw SysError("mounting /proc");
+                throw PosixError("mounting /proc");
 
             /* Mount sysfs on /sys. */
             if (buildUser && buildUser->getUIDCount() != 1) {
                 createDirs(chrootRootDir + "/sys");
                 if (mount("none", (chrootRootDir + "/sys").c_str(), "sysfs", 0, 0) == -1)
-                    throw SysError("mounting /sys");
+                    throw PosixError("mounting /sys");
             }
 
             /* Mount a new tmpfs on /dev/shm to ensure that whatever
                the builder puts in /dev/shm is cleaned up automatically. */
             if (pathExists("/dev/shm") && mount("none", (chrootRootDir + "/dev/shm").c_str(), "tmpfs", 0,
                     fmt("size=%s", settings.sandboxShmSize).c_str()) == -1)
-                throw SysError("mounting /dev/shm");
+                throw PosixError("mounting /dev/shm");
 
             /* Mount a new devpts on /dev/pts.  Note that this
                requires the kernel to be compiled with
@@ -1870,7 +1870,7 @@ void LocalDerivationGoal::runChild()
                     chmod_(chrootRootDir + "/dev/pts/ptmx", 0666);
                 } else {
                     if (errno != EINVAL)
-                        throw SysError("mounting /dev/pts");
+                        throw PosixError("mounting /dev/pts");
                     doBind("/dev/pts", chrootRootDir + "/dev/pts");
                     doBind("/dev/ptmx", chrootRootDir + "/dev/ptmx");
                 }
@@ -1891,47 +1891,47 @@ void LocalDerivationGoal::runChild()
                shared subtree above, this allows addDependency() to
                make paths appear in the sandbox. */
             if (unshare(CLONE_NEWNS) == -1)
-                throw SysError("unsharing mount namespace");
+                throw PosixError("unsharing mount namespace");
 
             /* Unshare the cgroup namespace. This means
                /proc/self/cgroup will show the child's cgroup as '/'
                rather than whatever it is in the parent. */
             if (cgroup && unshare(CLONE_NEWCGROUP) == -1)
-                throw SysError("unsharing cgroup namespace");
+                throw PosixError("unsharing cgroup namespace");
 
             /* Do the chroot(). */
             if (chdir(chrootRootDir.c_str()) == -1)
-                throw SysError("cannot change directory to '%1%'", chrootRootDir);
+                throw PosixError("cannot change directory to '%1%'", chrootRootDir);
 
             if (mkdir("real-root", 0) == -1)
-                throw SysError("cannot create real-root directory");
+                throw PosixError("cannot create real-root directory");
 
             if (pivot_root(".", "real-root") == -1)
-                throw SysError("cannot pivot old root directory onto '%1%'", (chrootRootDir + "/real-root"));
+                throw PosixError("cannot pivot old root directory onto '%1%'", (chrootRootDir + "/real-root"));
 
             if (chroot(".") == -1)
-                throw SysError("cannot change root directory to '%1%'", chrootRootDir);
+                throw PosixError("cannot change root directory to '%1%'", chrootRootDir);
 
             if (umount2("real-root", MNT_DETACH) == -1)
-                throw SysError("cannot unmount real root filesystem");
+                throw PosixError("cannot unmount real root filesystem");
 
             if (rmdir("real-root") == -1)
-                throw SysError("cannot remove real-root directory");
+                throw PosixError("cannot remove real-root directory");
 
             /* Switch to the sandbox uid/gid in the user namespace,
                which corresponds to the build user or calling user in
                the parent namespace. */
             if (setgid(sandboxGid()) == -1)
-                throw SysError("setgid failed");
+                throw PosixError("setgid failed");
             if (setuid(sandboxUid()) == -1)
-                throw SysError("setuid failed");
+                throw PosixError("setuid failed");
 
             setUser = false;
         }
 #endif
 
         if (chdir(tmpDirInSandbox.c_str()) == -1)
-            throw SysError("changing into '%1%'", tmpDir);
+            throw PosixError("changing into '%1%'", tmpDir);
 
         /* Close all other file descriptors. */
         closeMostFDs({STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO});
@@ -1960,17 +1960,17 @@ void LocalDerivationGoal::runChild()
                admins to specify groups such as "kvm".  */
             auto gids = buildUser->getSupplementaryGIDs();
             if (setgroups(gids.size(), gids.data()) == -1)
-                throw SysError("cannot set supplementary groups of build user");
+                throw PosixError("cannot set supplementary groups of build user");
 
             if (setgid(buildUser->getGID()) == -1 ||
                 getgid() != buildUser->getGID() ||
                 getegid() != buildUser->getGID())
-                throw SysError("setgid failed");
+                throw PosixError("setgid failed");
 
             if (setuid(buildUser->getUID()) == -1 ||
                 getuid() != buildUser->getUID() ||
                 geteuid() != buildUser->getUID())
-                throw SysError("setuid failed");
+                throw PosixError("setuid failed");
         }
 
         /* Fill in the arguments. */
@@ -2055,7 +2055,7 @@ void LocalDerivationGoal::runChild()
                     if (lstat(path.c_str(), &st)) {
                         if (i.second.optional && errno == ENOENT)
                             continue;
-                        throw SysError("getting attributes of path '%s", path);
+                        throw PosixError("getting attributes of path '%s", path);
                     }
                     if (S_ISDIR(st.st_mode))
                         sandboxProfile += fmt("\t(subpath \"%s\")\n", path);
@@ -2153,10 +2153,10 @@ void LocalDerivationGoal::runChild()
         posix_spawnattr_t attrp;
 
         if (posix_spawnattr_init(&attrp))
-            throw SysError("failed to initialize builder");
+            throw PosixError("failed to initialize builder");
 
         if (posix_spawnattr_setflags(&attrp, POSIX_SPAWN_SETEXEC))
-            throw SysError("failed to initialize builder");
+            throw PosixError("failed to initialize builder");
 
         if (drv->platform == "aarch64-darwin") {
             // Unset kern.curproc_arch_affinity so we can escape Rosetta
@@ -2175,7 +2175,7 @@ void LocalDerivationGoal::runChild()
         execve(builder.c_str(), stringsToCharPtrs(args).data(), stringsToCharPtrs(envStrs).data());
 #endif
 
-        throw SysError("executing '%1%'", drv->builder);
+        throw PosixError("executing '%1%'", drv->builder);
 
     } catch (Error & e) {
         if (sendException) {
@@ -2273,7 +2273,7 @@ SingleDrvOutputs LocalDerivationGoal::registerOutputs()
                 throw BuildError(
                     "builder for '%s' failed to produce output path for output '%s' at '%s'",
                     worker.store.printStorePath(drvPath), outputName, actualPath);
-            throw SysError("getting attributes of path '%s'", actualPath);
+            throw PosixError("getting attributes of path '%s'", actualPath);
         }
 
 #ifndef __CYGWIN__

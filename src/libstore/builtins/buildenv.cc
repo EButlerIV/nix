@@ -21,7 +21,7 @@ static void createLinks(State & state, const Path & srcDir, const Path & dstDir,
 
     try {
         srcFiles = readDirectory(srcDir);
-    } catch (SysError & e) {
+    } catch (PosixError & e) {
         if (e.errNo == ENOTDIR) {
             warn("not including '%s' in the user environment because it's not a directory", srcDir);
             return;
@@ -39,8 +39,8 @@ static void createLinks(State & state, const Path & srcDir, const Path & dstDir,
         struct stat srcSt;
         try {
             if (stat(srcFile.c_str(), &srcSt) == -1)
-                throw SysError("getting status of '%1%'", srcFile);
-        } catch (SysError & e) {
+                throw PosixError("getting status of '%1%'", srcFile);
+        } catch (PosixError & e) {
             if (e.errNo == ENOENT || e.errNo == ENOTDIR) {
                 warn("skipping dangling symlink '%s'", dstFile);
                 continue;
@@ -75,15 +75,15 @@ static void createLinks(State & state, const Path & srcDir, const Path & dstDir,
                     if (!S_ISDIR(lstat(target).st_mode))
                         throw Error("collision between '%1%' and non-directory '%2%'", srcFile, target);
                     if (unlink(dstFile.c_str()) == -1)
-                        throw SysError("unlinking '%1%'", dstFile);
+                        throw PosixError("unlinking '%1%'", dstFile);
                     if (mkdir(dstFile.c_str(), 0755) == -1)
-                        throw SysError("creating directory '%1%'", dstFile);
+                        throw PosixError("creating directory '%1%'", dstFile);
                     createLinks(state, target, dstFile, state.priorities[dstFile]);
                     createLinks(state, srcFile, dstFile, priority);
                     continue;
                 }
             } else if (errno != ENOENT)
-                throw SysError("getting status of '%1%'", dstFile);
+                throw PosixError("getting status of '%1%'", dstFile);
         }
 
         else {
@@ -101,11 +101,11 @@ static void createLinks(State & state, const Path & srcDir, const Path & dstDir,
                     if (prevPriority < priority)
                         continue;
                     if (unlink(dstFile.c_str()) == -1)
-                        throw SysError("unlinking '%1%'", dstFile);
+                        throw PosixError("unlinking '%1%'", dstFile);
                 } else if (S_ISDIR(dstSt.st_mode))
                     throw Error("collision between non-directory '%1%' and directory '%2%'", srcFile, dstFile);
             } else if (errno != ENOENT)
-                throw SysError("getting status of '%1%'", dstFile);
+                throw PosixError("getting status of '%1%'", dstFile);
         }
 
         createSymlink(srcFile, dstFile);
@@ -129,7 +129,7 @@ void buildProfile(const Path & out, Packages && pkgs)
                     readFile(pkgDir + "/nix-support/propagated-user-env-packages"), " \n"))
                 if (!done.count(p))
                     postponed.insert(p);
-        } catch (SysError & e) {
+        } catch (PosixError & e) {
             if (e.errNo != ENOENT && e.errNo != ENOTDIR) throw;
         }
     };

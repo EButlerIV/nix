@@ -413,7 +413,7 @@ void Worker::waitForInput()
     if (poll(pollStatus.data(), pollStatus.size(),
             useTimeout ? timeout * 1000 : -1) == -1) {
         if (errno == EINTR) return;
-        throw SysError("waiting for input");
+        throw PosixError("waiting for input");
     }
 
     auto after = steady_time_point::clock::now();
@@ -445,7 +445,7 @@ void Worker::waitForInput()
                     j->fds.erase(k);
                 } else if (rd == -1) {
                     if (errno != EINTR)
-                        throw SysError("%s: read failed", goal->getName());
+                        throw PosixError("%s: read failed", goal->getName());
                 } else {
                     printMsg(lvlVomit, "%1%: read %2% bytes",
                         goal->getName(), rd);

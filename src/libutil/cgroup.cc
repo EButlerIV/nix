@@ -100,7 +100,7 @@ static CgroupStats destroyCgroup(const Path & cgroup, bool returnStats)
             }
             // FIXME: pid wraparound
             if (kill(pid, SIGKILL) == -1 && errno != ESRCH)
-                throw SysError("killing member %d of cgroup '%s'", pid, cgroup);
+                throw PosixError("killing member %d of cgroup '%s'", pid, cgroup);
         }
 
         auto sleep = std::chrono::milliseconds((int) std::pow(2.0, std::min(round, 10)));
@@ -134,7 +134,7 @@ static CgroupStats destroyCgroup(const Path & cgroup, bool returnStats)
     }
 
     if (rmdir(cgroup.c_str()) == -1)
-        throw SysError("deleting cgroup '%s'", cgroup);
+        throw PosixError("deleting cgroup '%s'", cgroup);
 
     return stats;
 }

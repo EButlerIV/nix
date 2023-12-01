@@ -25,7 +25,7 @@ void setPersonality(std::string_view system)
             || system == "armv5tel-linux")
         {
             if (personality(PER_LINUX32) == -1)
-                throw SysError("cannot set 32-bit personality");
+                throw PosixError("cannot set 32-bit personality");
         }
 
         /* Impersonate a Linux 2.6 machine to get some determinism in

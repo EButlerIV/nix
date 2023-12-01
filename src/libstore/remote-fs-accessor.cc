@@ -73,10 +73,10 @@ std::pair<ref<SourceAccessor>, CanonPath> RemoteFSAccessor::fetch(const CanonPat
 
                     AutoCloseFD fd = open(cacheFile.c_str(), O_RDONLY | O_CLOEXEC);
                     if (!fd)
-                        throw SysError("opening NAR cache file '%s'", cacheFile);
+                        throw PosixError("opening NAR cache file '%s'", cacheFile);
 
                     if (lseek(fd.get(), offset, SEEK_SET) != (off_t) offset)
-                        throw SysError("seeking in '%s'", cacheFile);
+                        throw PosixError("seeking in '%s'", cacheFile);
 
                     std::string buf(length, 0);
                     readFull(fd.get(), buf.data(), length);

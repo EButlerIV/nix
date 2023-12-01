@@ -118,7 +118,7 @@ void saveMountNamespace()
     std::call_once(done, []() {
         fdSavedMountNamespace = open("/proc/self/ns/mnt", O_RDONLY);
         if (!fdSavedMountNamespace)
-            throw SysError("saving parent mount namespace");
+            throw PosixError("saving parent mount namespace");
 
         fdSavedRoot = open("/proc/self/root", O_RDONLY);
     });
@@ -132,17 +132,17 @@ void restoreMountNamespace()
         auto savedCwd = absPath(".");
 
         if (fdSavedMountNamespace && setns(fdSavedMountNamespace.get(), CLONE_NEWNS) == -1)
-            throw SysError("restoring parent mount namespace");
+            throw PosixError("restoring parent mount namespace");
 
         if (fdSavedRoot) {
             if (fchdir(fdSavedRoot.get()))
-                throw SysError("chdir into saved root");
+                throw PosixError("chdir into saved root");
             if (chroot("."))
-                throw SysError("chroot into saved root");
+                throw PosixError("chroot into saved root");
         }
 
         if (chdir(savedCwd.c_str()) == -1)
-            throw SysError("restoring cwd");
+            throw PosixError("restoring cwd");
     } catch (Error & e) {
         debug(e.msg());
     }
@@ -153,7 +153,7 @@ void unshareFilesystem()
 {
 #ifdef __linux__
     if (unshare(CLONE_FS) != 0 && errno != EPERM)
-        throw SysError("unsharing filesystem state in download thread");
+        throw PosixError("unsharing filesystem state in download thread");
 #endif
 }
 

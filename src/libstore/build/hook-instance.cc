@@ -38,28 +38,28 @@ HookInstance::HookInstance()
     pid = startProcess([&]() {
 
         if (dup2(fromHook.writeSide.get(), STDERR_FILENO) == -1)
-            throw SysError("cannot pipe standard error into log file");
+            throw PosixError("cannot pipe standard error into log file");
 
         commonChildInit();
 
-        if (chdir("/") == -1) throw SysError("changing into /");
+        if (chdir("/") == -1) throw PosixError("changing into /");
 
         /* Dup the communication pipes. */
         if (dup2(toHook.readSide.get(), STDIN_FILENO) == -1)
-            throw SysError("dupping to-hook read side");
+            throw PosixError("dupping to-hook read side");
 
         /* Use fd 4 for the builder's stdout/stderr. */
         if (dup2(builderOut.writeSide.get(), 4) == -1)
-            throw SysError("dupping builder's stdout/stderr");
+            throw PosixError("dupping builder's stdout/stderr");
 
         /* Hack: pass the read side of that fd to allow build-remote
            to read SSH error messages. */
         if (dup2(builderOut.readSide.get(), 5) == -1)
-            throw SysError("dupping builder's stdout/stderr");
+            throw PosixError("dupping builder's stdout/stderr");
 
         execv(buildHook.c_str(), stringsToCharPtrs(args).data());
 
-        throw SysError("executing '%s'", buildHook);
+        throw PosixError("executing '%s'", buildHook);
     });
 
     pid.setSeparatePG(true);

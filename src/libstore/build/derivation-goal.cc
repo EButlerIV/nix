@@ -789,7 +789,7 @@ void DerivationGoal::tryLocalBuild() {
 static void chmod_(const Path & path, mode_t mode)
 {
     if (chmod(path.c_str(), mode) == -1)
-        throw SysError("setting permissions on '%s'", path);
+        throw PosixError("setting permissions on '%s'", path);
 }
 
 
@@ -1188,7 +1188,7 @@ HookReply DerivationGoal::tryBuildHook()
         else if (reply != "accept")
             throw Error("bad hook reply '%s'", reply);
 
-    } catch (SysError & e) {
+    } catch (PosixError & e) {
         if (e.errNo == EPIPE) {
             printError(
                 "build hook died unexpectedly: %s",
@@ -1274,7 +1274,7 @@ Path DerivationGoal::openLogFile()
         settings.compressLog ? ".bz2" : "");
 
     fdLogFile = open(logFileName.c_str(), O_CREAT | O_WRONLY | O_TRUNC | O_CLOEXEC, 0666);
-    if (!fdLogFile) throw SysError("creating log file '%1%'", logFileName);
+    if (!fdLogFile) throw PosixError("creating log file '%1%'", logFileName);
 
     logFileSink = std::make_shared<FdSink>(fdLogFile.get());
 

@@ -178,28 +178,52 @@ MakeError(Error, BaseError);
 MakeError(UsageError, Error);
 MakeError(UnimplementedError, Error);
 
-class SysError : public Error
+/**
+ * To use in catch-blocks.
+ */
+MakeError(SysError, Error);
+
+/**
+ * POSIX system error, created using `errno`, `strerror` friends.
+ *
+ * Throw this, but do not catch this! Catch `SysError` instead. This
+ * allows implementations to freely switch between this and `WinError`
+ * without breaking catch blocks.
+ */
+
+class PosixError : public SysError
 {
 public:
     int errNo;
 
+    /**
+     * Construct using the explicitly-provided error number. `strerror`
+     * will be used to try to add additional information to the message.
+     */
     template<typename... Args>
-    SysError(int errNo_, const Args & ... args)
-        : Error("")
+    PosixError(int errNo, const Args & ... args)
+        : SysError(""), errNo(errNo)
     {
-        errNo = errNo_;
         auto hf = hintfmt(args...);
         err.msg = hintfmt("%1%: %2%", normaltxt(hf.str()), strerror(errNo));
     }
 
+    /**
+     * Construct using the ambient `errno`.
+     *
+     * Be sure to not perform another `errno`-modifying operation before
+     * calling this constructor!
+     */
     template<typename... Args>
-    SysError(const Args & ... args)
-        : SysError(errno, args ...)
+    PosixError(const Args & ... args)
+        : PosixError(errno, args ...)
     {
     }
 };
 
-/** Throw an exception for the purpose of checking that exception handling works; see 'initLibUtil()'.
+/**
+ * Throw an exception for the purpose of checking that exception
+ * handling works; see 'initLibUtil()'.
  */
 void throwExceptionSelfCheck();
 

@@ -68,14 +68,14 @@ void RestoreSink::createDirectory(const Path & path)
 {
     Path p = dstPath + path;
     if (mkdir(p.c_str(), 0777) == -1)
-        throw SysError("creating directory '%1%'", p);
+        throw PosixError("creating directory '%1%'", p);
 };
 
 void RestoreSink::createRegularFile(const Path & path)
 {
     Path p = dstPath + path;
     fd = open(p.c_str(), O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC, 0666);
-    if (!fd) throw SysError("creating file '%1%'", p);
+    if (!fd) throw PosixError("creating file '%1%'", p);
 }
 
 void RestoreSink::closeRegularFile()
@@ -88,9 +88,9 @@ void RestoreSink::isExecutable()
 {
     struct stat st;
     if (fstat(fd.get(), &st) == -1)
-        throw SysError("fstat");
+        throw PosixError("fstat");
     if (fchmod(fd.get(), st.st_mode | (S_IXUSR | S_IXGRP | S_IXOTH)) == -1)
-        throw SysError("fchmod");
+        throw PosixError("fchmod");
 }
 
 void RestoreSink::preallocateContents(uint64_t len)
@@ -106,7 +106,7 @@ void RestoreSink::preallocateContents(uint64_t len)
            OpenSolaris).  Since preallocation is just an
            optimisation, ignore it. */
         if (errno && errno != EINVAL && errno != EOPNOTSUPP && errno != ENOSYS)
-            throw SysError("preallocating file of %1% bytes", len);
+            throw PosixError("preallocating file of %1% bytes", len);
     }
 #endif
 }

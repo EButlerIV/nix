@@ -318,19 +318,19 @@ bool NixRepl::getLine(std::string & input, const std::string & prompt)
         sigfillset(&act.sa_mask);
         act.sa_flags = 0;
         if (sigaction(SIGINT, &act, &old))
-            throw SysError("installing handler for SIGINT");
+            throw PosixError("installing handler for SIGINT");
 
         sigemptyset(&set);
         sigaddset(&set, SIGINT);
         if (sigprocmask(SIG_UNBLOCK, &set, &savedSignalMask))
-            throw SysError("unblocking SIGINT");
+            throw PosixError("unblocking SIGINT");
     };
     auto restoreSignals = [&]() {
         if (sigprocmask(SIG_SETMASK, &savedSignalMask, nullptr))
-            throw SysError("restoring signals");
+            throw PosixError("restoring signals");
 
         if (sigaction(SIGINT, &old, 0))
-            throw SysError("restoring handler for SIGINT");
+            throw PosixError("restoring handler for SIGINT");
     };
 
     setupSignals();

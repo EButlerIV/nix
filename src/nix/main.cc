@@ -331,7 +331,7 @@ void mainWrapped(int argc, char * * argv)
         try {
             saveMountNamespace();
             if (unshare(CLONE_NEWNS) == -1)
-                throw SysError("setting up a private mount namespace");
+                throw PosixError("setting up a private mount namespace");
         } catch (Error & e) { }
     }
     #endif

@@ -77,7 +77,7 @@ int Pid::kill()
 #if __FreeBSD__ || __APPLE__
         if (errno != EPERM || ::kill(pid, 0) != 0)
 #endif
-            logError(SysError("killing process %d", pid).info());
+            logError(PosixError("killing process %d", pid).info());
     }
 
     return wait();
@@ -95,7 +95,7 @@ int Pid::wait()
             return status;
         }
         if (errno != EINTR)
-            throw SysError("cannot get exit status of PID %d", pid);
+            throw PosixError("cannot get exit status of PID %d", pid);
         checkInterrupt();
     }
 }
@@ -134,7 +134,7 @@ void killUser(uid_t uid)
     Pid pid = startProcess([&]() {
 
         if (setuid(uid) == -1)
-            throw SysError("setting uid");
+            throw PosixError("setting uid");
 
         while (true) {
 #ifdef __APPLE__
@@ -149,7 +149,7 @@ void killUser(uid_t uid)
 #endif
             if (errno == ESRCH || errno == EPERM) break; /* no more processes */
             if (errno != EINTR)
-                throw SysError("cannot kill processes for uid '%1%'", uid);
+                throw PosixError("cannot kill processes for uid '%1%'", uid);
         }
 
         _exit(0);
@@ -203,7 +203,7 @@ pid_t startProcess(std::function<void()> fun, const ProcessOptions & options)
         try {
 #if __linux__
             if (options.dieWithParent && prctl(PR_SET_PDEATHSIG, SIGKILL) == -1)
-                throw SysError("setting death signal");
+                throw PosixError("setting death signal");
 #endif
             fun();
         } catch (std::exception & e) {
@@ -227,7 +227,7 @@ pid_t startProcess(std::function<void()> fun, const ProcessOptions & options)
         size_t stackSize = 1 * 1024 * 1024;
         auto stack = (char *) mmap(0, stackSize,
             PROT_WRITE | PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
-        if (stack == MAP_FAILED) throw SysError("allocating stack");
+        if (stack == MAP_FAILED) throw PosixError("allocating stack");
 
         Finally freeStack([&]() { munmap(stack, stackSize); });
 
@@ -238,7 +238,7 @@ pid_t startProcess(std::function<void()> fun, const ProcessOptions & options)
     } else
         pid = doFork(options.allowVfork, wrapper);
 
-    if (pid == -1) throw SysError("unable to fork");
+    if (pid == -1) throw PosixError("unable to fork");
 
     return pid;
 }
@@ -312,22 +312,22 @@ void runProgram2(const RunOptions & options)
         if (options.environment)
             replaceEnv(*options.environment);
         if (options.standardOut && dup2(out.writeSide.get(), STDOUT_FILENO) == -1)
-            throw SysError("dupping stdout");
+            throw PosixError("dupping stdout");
         if (options.mergeStderrToStdout)
             if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1)
-                throw SysError("cannot dup stdout into stderr");
+                throw PosixError("cannot dup stdout into stderr");
         if (source && dup2(in.readSide.get(), STDIN_FILENO) == -1)
-            throw SysError("dupping stdin");
+            throw PosixError("dupping stdin");
 
         if (options.chdir && chdir((*options.chdir).c_str()) == -1)
-            throw SysError("chdir failed");
+            throw PosixError("chdir failed");
         if (options.gid && setgid(*options.gid) == -1)
-            throw SysError("setgid failed");
+            throw PosixError("setgid failed");
         /* Drop all other groups if we're setgid. */
         if (options.gid && setgroups(0, 0) == -1)
-            throw SysError("setgroups failed");
+            throw PosixError("setgroups failed");
         if (options.uid && setuid(*options.uid) == -1)
-            throw SysError("setuid failed");
+            throw PosixError("setuid failed");
 
         Strings args_(options.args);
         args_.push_front(options.program);
@@ -341,7 +341,7 @@ void runProgram2(const RunOptions & options)
         else
             execv(options.program.c_str(), stringsToCharPtrs(args_).data());
 
-        throw SysError("executing '%1%'", options.program);
+        throw PosixError("executing '%1%'", options.program);
     }, processOptions);
 
     out.writeSide.close();

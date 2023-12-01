@@ -72,7 +72,7 @@ protected:
     {
         try {
             readFile(binaryCacheDir + "/" + path, sink);
-        } catch (SysError & e) {
+        } catch (PosixError & e) {
             if (e.errNo == ENOENT)
                 throw NoSuchBinaryCacheFile("file '%s' does not exist in binary cache", path);
             throw;

@@ -16,7 +16,7 @@ AutoCloseFD createUnixDomainSocket()
         #endif
         , 0);
     if (!fdSocket)
-        throw SysError("cannot create Unix domain socket");
+        throw PosixError("cannot create Unix domain socket");
     closeOnExec(fdSocket.get());
     return fdSocket;
 }
@@ -29,10 +29,10 @@ AutoCloseFD createUnixDomainSocket(const Path & path, mode_t mode)
     bind(fdSocket.get(), path);
 
     if (chmod(path.c_str(), mode) == -1)
-        throw SysError("changing permissions on '%1%'", path);
+        throw PosixError("changing permissions on '%1%'", path);
 
     if (listen(fdSocket.get(), 100) == -1)
-        throw SysError("cannot listen on socket '%1%'", path);
+        throw PosixError("cannot listen on socket '%1%'", path);
 
     return fdSocket;
 }
@@ -49,13 +49,13 @@ void bind(int fd, const std::string & path)
         Pid pid = startProcess([&]() {
             Path dir = dirOf(path);
             if (chdir(dir.c_str()) == -1)
-                throw SysError("chdir to '%s' failed", dir);
+                throw PosixError("chdir to '%s' failed", dir);
             std::string base(baseNameOf(path));
             if (base.size() + 1 >= sizeof(addr.sun_path))
                 throw Error("socket path '%s' is too long", base);
             memcpy(addr.sun_path, base.c_str(), base.size() + 1);
             if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1)
-                throw SysError("cannot bind to socket '%s'", path);
+                throw PosixError("cannot bind to socket '%s'", path);
             _exit(0);
         });
         int status = pid.wait();
@@ -64,7 +64,7 @@ void bind(int fd, const std::string & path)
     } else {
         memcpy(addr.sun_path, path.c_str(), path.size() + 1);
         if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1)
-            throw SysError("cannot bind to socket '%s'", path);
+            throw PosixError("cannot bind to socket '%s'", path);
     }
 }
 
@@ -78,13 +78,13 @@ void connect(int fd, const std::string & path)
         Pid pid = startProcess([&]() {
             Path dir = dirOf(path);
             if (chdir(dir.c_str()) == -1)
-                throw SysError("chdir to '%s' failed", dir);
+                throw PosixError("chdir to '%s' failed", dir);
             std::string base(baseNameOf(path));
             if (base.size() + 1 >= sizeof(addr.sun_path))
                 throw Error("socket path '%s' is too long", base);
             memcpy(addr.sun_path, base.c_str(), base.size() + 1);
             if (connect(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1)
-                throw SysError("cannot connect to socket at '%s'", path);
+                throw PosixError("cannot connect to socket at '%s'", path);
             _exit(0);
         });
         int status = pid.wait();
@@ -93,7 +93,7 @@ void connect(int fd, const std::string & path)
     } else {
         memcpy(addr.sun_path, path.c_str(), path.size() + 1);
         if (connect(fd, (struct sockaddr *) &addr, sizeof(addr)) == -1)
-            throw SysError("cannot connect to socket at '%s'", path);
+            throw PosixError("cannot connect to socket at '%s'", path);
     }
 }
 

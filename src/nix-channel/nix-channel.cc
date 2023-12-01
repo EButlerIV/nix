@@ -41,7 +41,7 @@ static void writeChannels()
 {
     auto channelsFD = AutoCloseFD{open(channelsList.c_str(), O_WRONLY | O_CLOEXEC | O_CREAT | O_TRUNC, 0644)};
     if (!channelsFD)
-        throw SysError("opening '%1%' for writing", channelsList);
+        throw PosixError("opening '%1%' for writing", channelsList);
     for (const auto & channel : channels)
         writeFull(channelsFD.get(), channel.second + " " + channel.first + "\n");
 }
@@ -151,9 +151,9 @@ static void update(const StringSet & channelNames)
         if (S_ISLNK(st.st_mode))
             // old-skool ~/.nix-defexpr
             if (unlink(nixDefExpr.c_str()) == -1)
-                throw SysError("unlinking %1%", nixDefExpr);
+                throw PosixError("unlinking %1%", nixDefExpr);
     } else if (errno != ENOENT) {
-        throw SysError("getting status of %1%", nixDefExpr);
+        throw PosixError("getting status of %1%", nixDefExpr);
     }
     createDirs(nixDefExpr);
     auto channelLink = nixDefExpr + "/channels";

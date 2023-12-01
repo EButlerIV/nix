@@ -26,7 +26,7 @@ static void canonicaliseTimestampAndPermissions(const Path & path, const struct 
                  | 0444
                  | (st.st_mode & S_IXUSR ? 0111 : 0);
             if (chmod(path.c_str(), mode) == -1)
-                throw SysError("changing mode of '%1%' to %2$o", path, mode);
+                throw PosixError("changing mode of '%1%' to %2$o", path, mode);
         }
 
     }
@@ -44,7 +44,7 @@ static void canonicaliseTimestampAndPermissions(const Path & path, const struct 
 #else
         if (!S_ISLNK(st.st_mode) && utimes(path.c_str(), times) == -1)
 #endif
-            throw SysError("changing modification time of '%1%'", path);
+            throw PosixError("changing modification time of '%1%'", path);
     }
 }
 
@@ -68,7 +68,7 @@ static void canonicalisePathMetaData_(
        setattrlist() to remove other attributes as well. */
     if (lchflags(path.c_str(), 0)) {
         if (errno != ENOTSUP)
-            throw SysError("clearing flags of path '%1%'", path);
+            throw PosixError("clearing flags of path '%1%'", path);
     }
 #endif
 
@@ -84,17 +84,17 @@ static void canonicalisePathMetaData_(
 
     if (eaSize < 0) {
         if (errno != ENOTSUP && errno != ENODATA)
-            throw SysError("querying extended attributes of '%s'", path);
+            throw PosixError("querying extended attributes of '%s'", path);
     } else if (eaSize > 0) {
         std::vector<char> eaBuf(eaSize);
 
         if ((eaSize = llistxattr(path.c_str(), eaBuf.data(), eaBuf.size())) < 0)
-            throw SysError("querying extended attributes of '%s'", path);
+            throw PosixError("querying extended attributes of '%s'", path);
 
         for (auto & eaName: tokenizeString<Strings>(std::string(eaBuf.data(), eaSize), std::string("\000", 1))) {
             if (settings.ignoredAcls.get().count(eaName)) continue;
             if (lremovexattr(path.c_str(), eaName.c_str()) == -1)
-                throw SysError("removing extended attribute '%s' from '%s'", eaName, path);
+                throw PosixError("removing extended attribute '%s' from '%s'", eaName, path);
         }
      }
 #endif
@@ -131,7 +131,7 @@ static void canonicalisePathMetaData_(
         if (!S_ISLNK(st.st_mode) &&
             chown(path.c_str(), geteuid(), getegid()) == -1)
 #endif
-            throw SysError("changing owner of '%1%' to %2%",
+            throw PosixError("changing owner of '%1%' to %2%",
                 path, geteuid());
     }
 

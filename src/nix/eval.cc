@@ -88,7 +88,7 @@ struct CmdEval : MixJSON, InstallableValueCommand, MixReadOnlyOption
                     writeFile(path, v.string_view());
                 else if (v.type() == nAttrs) {
                     if (mkdir(path.c_str(), 0777) == -1)
-                        throw SysError("creating directory '%s'", path);
+                        throw PosixError("creating directory '%s'", path);
                     for (auto & attr : *v.attrs) {
                         std::string_view name = state->symbols[attr.name];
                         try {
