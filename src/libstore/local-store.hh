@@ -32,7 +32,9 @@ struct OptimiseStats
 {
     unsigned long filesLinked = 0;
     uint64_t bytesFreed = 0;
+#ifndef _WIN32
     uint64_t blocksFreed = 0;
+#endif
 };
 
 struct LocalStoreConfig : virtual LocalFSStoreConfig
